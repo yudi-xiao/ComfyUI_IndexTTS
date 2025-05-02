@@ -6,6 +6,8 @@ High-quality voice cloning, very fast, supports Chinese and English, and allows 
 
 ## 📣 Updates
 
+[2025-05-02] ⚒️: DeepSpeed acceleration is available, but DeepSpeed needs to be installed. For Windows, please refer to [DeepSpeed Installation](https://github.com/deepspeedai/DeepSpeed/blob/master/blogs/windows/08-2024/chinese/README.md). The acceleration is not obvious.
+
 [2025-04-30] ⚒️: Released v1.0.0.
 
 ## Installation

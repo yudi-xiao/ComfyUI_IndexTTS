@@ -8,6 +8,8 @@
 
 ## 📣 更新
 
+[2025-05-02]⚒️: 可用 DeepSpeed 加速, 需要安装 DeepSpeed, Windows 详见 [DeepSpeed 安装](https://github.com/deepspeedai/DeepSpeed/blob/master/blogs/windows/08-2024/chinese/README.md). 加速不明显.
+
 [2025-04-30]⚒️: 发布 v1.0.0.
 
 ## 安装
