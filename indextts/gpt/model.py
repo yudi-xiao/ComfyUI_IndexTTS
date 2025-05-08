@@ -3,7 +3,7 @@ import functools
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import GPT2Config, GPT2PreTrainedModel, LogitsProcessorList
+from transformers import GPT2Config, GPT2LMHeadModel, GPT2Model, GPT2PreTrainedModel, LogitsProcessorList
 from transformers.modeling_outputs import CausalLMOutputWithCrossAttentions
 from transformers.utils.model_parallel_utils import (assert_device_map,
                                                      get_device_map)
@@ -37,7 +37,7 @@ class ResBlock(nn.Module):
         return F.relu(self.net(x) + x)
 
 
-class GPT2InferenceModel(GPT2PreTrainedModel):
+class GPT2InferenceModel(GPT2LMHeadModel):
     def __init__(self, config, gpt, text_pos_emb, embeddings, norm, linear, kv_cache=False):
         super().__init__(config)
         self.transformer = gpt
@@ -254,7 +254,6 @@ def build_hf_gpt_transformer(layers, model_dim, heads, max_mel_seq_len, max_text
     """
     GPT-2 implemented by the HuggingFace library.
     """
-    from transformers import GPT2Config, GPT2Model
     gpt_config = GPT2Config(vocab_size=256,  # Unused.
                             n_positions=max_mel_seq_len + max_text_seq_len,
                             n_ctx=max_mel_seq_len + max_text_seq_len,
@@ -388,7 +387,7 @@ class UnifiedVoice(nn.Module):
     def post_init_gpt2_config(self, use_deepspeed=False, kv_cache=False, half=False):
         seq_length = self.max_mel_tokens + self.max_text_tokens + 2
         gpt_config = GPT2Config(
-            vocab_size=self.max_mel_tokens,
+            vocab_size=self.number_mel_codes,
             n_positions=seq_length,
             n_ctx=seq_length,
             n_embd=self.model_dim,
@@ -396,6 +395,7 @@ class UnifiedVoice(nn.Module):
             n_head=self.heads,
             gradient_checkpointing=False,
             use_cache=True,
+            # attn_implementation="flash_attention_2"
         )
         self.inference_model = GPT2InferenceModel(
             gpt_config,
@@ -410,14 +410,18 @@ class UnifiedVoice(nn.Module):
             import deepspeed
             self.ds_engine = deepspeed.init_inference(model=self.inference_model,
                                                       mp_size=1,
-                                                      replace_with_kernel_inject=False,
+                                                      use_triton=False,
+                                                      triton_autotune=False,
+                                                      replace_with_kernel_inject=True,
                                                       dtype=torch.float16)
             self.inference_model = self.ds_engine.module.eval()
         elif use_deepspeed and torch.cuda.is_available():
             import deepspeed
             self.ds_engine = deepspeed.init_inference(model=self.inference_model,
                                                       mp_size=1,
-                                                      replace_with_kernel_inject=False,
+                                                      use_triton=False,
+                                                      triton_autotune=False,
+                                                      replace_with_kernel_inject=True,
                                                       dtype=torch.float32)
             self.inference_model = self.ds_engine.module.eval()
         else:

@@ -513,7 +513,7 @@ class IndexTTSRun:
                 "top_k": ("INT", {"default": 30, "min": 0, "max": 1000, "step": 1}),
                 "top_p": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "temperature": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.01}),
-                "max_mel_tokens": ("INT", {"default": 600, "min": 0, "max": 100000, "step": 1}),
+                "max_mel_tokens": ("INT", {"default": 1000, "min": 0, "max": 100000, "step": 1}),
                 "bucket_enable": ("BOOLEAN", {"default": True}),
                 "fast_inference": ("BOOLEAN", {"default": True}),
                 "unload_model": ("BOOLEAN", {"default": True}),
