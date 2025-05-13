@@ -6,6 +6,11 @@ High-quality voice cloning, very fast, supports Chinese and English, and allows 
 
 ## 📣 Updates
 
+[2025-05-14]⚒️: Supports v1.5. Download the models and rename they, placed in the `ComfyUI\models\TTS\Index-TTS` path.
+- https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bigvgan_generator.pth  → `bigvgan_generator_v1_5.pth`
+- https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bpe.model → `bpe_v1_5.model`
+- https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/gpt.pth → `gpt_v1_5.pth`
+
 [2025-05-02] ⚒️: DeepSpeed acceleration is available, but DeepSpeed needs to be installed. For Windows, please refer to [DeepSpeed Installation](https://github.com/deepspeedai/DeepSpeed/blob/master/blogs/windows/08-2024/chinese/README.md). The acceleration is not obvious.
 
 [2025-04-30] ⚒️: Released v1.0.0.

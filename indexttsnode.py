@@ -507,6 +507,7 @@ class IndexTTSRun:
     def INPUT_TYPES(s):
         return {
             "required": {
+                "version":(["v1.5", "V1.0"], {"default": "v1.5"}),
                 "audio_prompt":("AUDIO",),
                 "text": ("STRING", {"forceInput": True}),
                 "text_language": (["zh", "en"], {"default": "zh"}),
@@ -526,6 +527,7 @@ class IndexTTSRun:
     CATEGORY = "🎤MW/MW-IndexTTS"
 
     def clone(self, 
+        version,
         audio_prompt, 
         text, 
         text_language,
@@ -537,8 +539,13 @@ class IndexTTSRun:
         fast_inference=True, 
         unload_model=True
         ):
+        if version == "v1.5":
+            cfg_path=f"{current_dir}/checkpoints/config_v1_5.yaml"
+        else:
+            cfg_path=f"{current_dir}/checkpoints/config.yaml"
+
         if self.index_tts is None:
-            self.index_tts = IndexTTS(text_language=text_language)
+            self.index_tts = IndexTTS(cfg_path=cfg_path, text_language=text_language)
 
         if fast_inference:
             res = self.index_tts.infer_fast(

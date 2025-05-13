@@ -8,6 +8,11 @@
 
 ## 📣 更新
 
+[2025-05-14]⚒️: 支持 v1.5 版本. 模型下载并更名放到 `ComfyUI\models\TTS\Index-TTS` 路径下:
+- https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bigvgan_generator.pth  → `bigvgan_generator_v1_5.pth`
+- https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bpe.model → `bpe_v1_5.model`
+- https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/gpt.pth → `gpt_v1_5.pth`
+
 [2025-05-02]⚒️: 可用 DeepSpeed 加速, 需要安装 DeepSpeed, Windows 详见 [DeepSpeed 安装](https://github.com/deepspeedai/DeepSpeed/blob/master/blogs/windows/08-2024/chinese/README.md). 加速不明显.
 
 [2025-04-30]⚒️: 发布 v1.0.0.
