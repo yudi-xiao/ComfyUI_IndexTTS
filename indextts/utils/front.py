@@ -205,9 +205,9 @@ class TextNormalizer:
         has_pinyin = bool(re.search(TextNormalizer.PINYIN_TONE_PATTERN, s, re.IGNORECASE))
         return has_pinyin
 
-    def load(self, lang: str = "zh"):
-        # # print(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-        # # sys.path.append(model_dir)
+    def load(self, lang="zh"):
+        # print(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+        # sys.path.append(model_dir)
         # import platform
 
         # if platform.system() == "Darwin":
@@ -225,14 +225,15 @@ class TextNormalizer:
         self.zh_normalizer = SimpleNormalizer(lang=lang)
         self.en_normalizer = SimpleNormalizer(lang=lang)
 
+
     def normalize(self, text: str) -> str:
         if not self.zh_normalizer or not self.en_normalizer:
             print("Error, text normalizer is not initialized !!!")
             return ""
         if self.use_chinese(text):
             replaced_text, pinyin_list = self.save_pinyin_tones(text.rstrip())
+            
             replaced_text, original_name_list = self.save_names(replaced_text)
-        
             try:
                 result = self.zh_normalizer.normalize(replaced_text)
             except Exception:

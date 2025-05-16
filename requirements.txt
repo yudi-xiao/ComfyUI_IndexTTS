@@ -1,4 +1,4 @@
 omegaconf
 sentencepiece
 tqdm
-# deepspeeds # Use it to accelerate model inference
+# deepspeed # Use it to accelerate model inference

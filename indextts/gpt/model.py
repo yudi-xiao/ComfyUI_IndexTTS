@@ -254,6 +254,7 @@ def build_hf_gpt_transformer(layers, model_dim, heads, max_mel_seq_len, max_text
     """
     GPT-2 implemented by the HuggingFace library.
     """
+    from transformers import GPT2Config, GPT2Model
     gpt_config = GPT2Config(vocab_size=256,  # Unused.
                             n_positions=max_mel_seq_len + max_text_seq_len,
                             n_ctx=max_mel_seq_len + max_text_seq_len,
@@ -395,7 +396,6 @@ class UnifiedVoice(nn.Module):
             n_head=self.heads,
             gradient_checkpointing=False,
             use_cache=True,
-            # attn_implementation="flash_attention_2"
         )
         self.inference_model = GPT2InferenceModel(
             gpt_config,
@@ -410,18 +410,14 @@ class UnifiedVoice(nn.Module):
             import deepspeed
             self.ds_engine = deepspeed.init_inference(model=self.inference_model,
                                                       mp_size=1,
-                                                      use_triton=False,
-                                                      triton_autotune=False,
-                                                      replace_with_kernel_inject=True,
+                                                      replace_with_kernel_inject=False,
                                                       dtype=torch.float16)
             self.inference_model = self.ds_engine.module.eval()
         elif use_deepspeed and torch.cuda.is_available():
             import deepspeed
             self.ds_engine = deepspeed.init_inference(model=self.inference_model,
                                                       mp_size=1,
-                                                      use_triton=False,
-                                                      triton_autotune=False,
-                                                      replace_with_kernel_inject=True,
+                                                      replace_with_kernel_inject=False,
                                                       dtype=torch.float32)
             self.inference_model = self.ds_engine.module.eval()
         else:

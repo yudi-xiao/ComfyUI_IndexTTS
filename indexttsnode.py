@@ -10,7 +10,7 @@ import folder_paths
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
-
+import time
 import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -26,11 +26,13 @@ from indextts.utils.front import TextNormalizer, TextTokenizer
 models_dir = folder_paths.models_dir
 models_path = os.path.join(models_dir, "TTS", "Index-TTS")
 
-device = "cpu"
+
 if torch.cuda.is_available():
     device = "cuda"
 elif hasattr(torch, "mps") and torch.backends.mps.is_available():
     device = "mps"
+else:
+    device = "cpu"
 
 def statistical_compare(tensor1, tensor2):
     """通过统计特征快速比较"""
@@ -50,20 +52,30 @@ def statistical_compare(tensor1, tensor2):
 
 class IndexTTS:
     def __init__(
-        self, cfg_path=f"{current_dir}/checkpoints/config.yaml", model_dir=models_path, device=device, text_language="zh"):
+        self, cfg_path=f"{current_dir}/checkpoints/config.yaml", model_dir=models_path, is_fp16=True, device=None, use_cuda_kernel=None, text_language="zh"):
         """
         Args:
             cfg_path (str): path to the config file.
             model_dir (str): path to the model directory.
             device (str): device to use (e.g., 'cuda:0', 'cpu'). If None, it will be set automatically based on the availability of CUDA or MPS.
         """
-        self.device = device
-        if device == "cuda":
-            self.is_fp16 = True
-            self.use_cuda_kernel = True
+        if device is not None:
+            self.device = device
+            self.is_fp16 = False if device == "cpu" else is_fp16
+            self.use_cuda_kernel = use_cuda_kernel is not None and use_cuda_kernel and device.startswith("cuda")
+        elif torch.cuda.is_available():
+            self.device = "cuda:0"
+            self.is_fp16 = is_fp16
+            self.use_cuda_kernel = use_cuda_kernel is None or use_cuda_kernel
+        elif hasattr(torch, "mps") and torch.backends.mps.is_available():
+            self.device = "mps"
+            self.is_fp16 = False # Use float16 on MPS is overhead than float32
+            self.use_cuda_kernel = False
         else:
+            self.device = "cpu"
             self.is_fp16 = False
             self.use_cuda_kernel = False
+            print(">> Be patient, it may take a while to run in CPU mode.")
 
         self.cfg = OmegaConf.load(cfg_path)
         self.model_dir = model_dir
@@ -99,7 +111,7 @@ class IndexTTS:
                 use_deepspeed = True
             except (ImportError, OSError, CalledProcessError) as e:
                 use_deepspeed = False
-                print(f">> DeepSpeed failed to load, fallback to standard inference: {e}")
+                print(f">> DeepSpeed加载失败，回退到标准推理: {e}")
 
             self.gpt.post_init_gpt2_config(use_deepspeed=use_deepspeed, kv_cache=True, half=True)
         else:
@@ -115,7 +127,6 @@ class IndexTTS:
             except:
                 print(">> Failed to load custom CUDA kernel for BigVGAN. Falling back to torch.")
                 self.use_cuda_kernel = False
-
         self.bigvgan = Generator(self.cfg.bigvgan, use_cuda_kernel=self.use_cuda_kernel)
         self.bigvgan_path = os.path.join(self.model_dir, self.cfg.bigvgan_checkpoint)
         vocoder_dict = torch.load(self.bigvgan_path, map_location="cpu")
@@ -127,7 +138,7 @@ class IndexTTS:
         print(">> bigvgan weights restored from:", self.bigvgan_path)
         self.bpe_path = os.path.join(self.model_dir, self.cfg.dataset["bpe_model"])
         self.normalizer = TextNormalizer()
-        self.normalizer.load(lang=text_language)
+        self.normalizer.load()
         print(">> TextNormalizer loaded")
         self.tokenizer = TextTokenizer(self.bpe_path, self.normalizer)
         print(">> bpe model loaded from:", self.bpe_path)
@@ -233,11 +244,12 @@ class IndexTTS:
             self.gr_progress(value, desc=desc)
 
     # 快速推理：对于“多句长文本”，可实现至少 2~10 倍以上的速度提升~ （First modified by sunnyboxs 2025-04-16）
-    def infer_fast(self, audio_prompt, text, top_k=30, top_p=0.8, temperature=1.0, max_mel_tokens=600, bucket_enable=True, verbose=False):
+    def infer_fast(self, audio_prompt, text, top_p, top_k, temperature, bucket_enable, max_mel_tokens, verbose=False):
         print(">> start fast inference...")
         self._set_gr_progress(0, "start fast inference...")
         if verbose:
             print(f"origin text:{text}")
+        start_time = time.perf_counter()
 
         # 如果参考音频改变了，才需要重新生成 cond_mel, 提升速度
         audio, sr = audio_prompt["waveform"].squeeze(0), audio_prompt["sample_rate"]
@@ -277,11 +289,14 @@ class IndexTTS:
         # lang = "EN"
         # lang = "ZH"
         wavs = []
+        gpt_gen_time = 0
+        gpt_forward_time = 0
+        bigvgan_time = 0
 
         # text processing
         all_text_tokens: List[List[torch.Tensor]] = []
         self._set_gr_progress(0.1, "text processing...")
-        # bucket_enable 预分桶开关，优先保证质量=True。优先保证速度=False。
+        bucket_enable = bucket_enable # 预分桶开关，优先保证质量=True。优先保证速度=False。
         all_sentences = self.bucket_sentences(sentences, enable=bucket_enable) 
         for sentences in all_sentences:
             temp_tokens: List[torch.Tensor] = []
@@ -297,6 +312,7 @@ class IndexTTS:
                     text_token_syms = self.tokenizer.convert_ids_to_tokens(text_tokens[0].tolist())
                     print("text_token_syms is same as sentence tokens", text_token_syms == sent) 
                 temp_tokens.append(text_tokens)
+        
             
         # Sequential processing of bucketing data
         all_batch_num = 0
@@ -310,6 +326,7 @@ class IndexTTS:
 
             # gpt speech
             self._set_gr_progress(0.2, "gpt inference speech...")
+            m_start_time = time.perf_counter()
             with torch.no_grad():
                 with torch.amp.autocast(batch_text_tokens.device.type, enabled=self.dtype is not None, dtype=self.dtype):
                     temp_codes = self.gpt.inference_speech(batch_auto_conditioning, batch_text_tokens,
@@ -325,6 +342,7 @@ class IndexTTS:
                                         repetition_penalty=repetition_penalty,
                                         max_generate_length=max_mel_tokens)
                     all_batch_codes.append(temp_codes)
+            gpt_gen_time += time.perf_counter() - m_start_time
 
         # gpt latent
         self._set_gr_progress(0.5, "gpt inference latents...")
@@ -340,6 +358,7 @@ class IndexTTS:
                 codes, code_lens = self.remove_long_silence(codes, silent_token=52, max_consecutive=30)
                 text_tokens = batch_tokens[i]
                 all_idxs.append(batch_sentences[i]["idx"])
+                m_start_time = time.perf_counter()
                 with torch.no_grad():
                     with torch.amp.autocast(text_tokens.device.type, enabled=self.dtype is not None, dtype=self.dtype):
                         latent = \
@@ -348,6 +367,7 @@ class IndexTTS:
                                         code_lens*self.gpt.mel_length_compression,
                                         cond_mel_lengths=torch.tensor([auto_conditioning.shape[-1]], device=text_tokens.device),
                                         return_latent=True, clip_inputs=False)
+                        gpt_forward_time += time.perf_counter() - m_start_time
                         all_latents.append(latent)
 
         # bigvgan chunk
@@ -366,32 +386,36 @@ class IndexTTS:
             latent = torch.cat(items, dim=1)
             with torch.no_grad():
                 with torch.amp.autocast(latent.device.type, enabled=self.dtype is not None, dtype=self.dtype):
+                    m_start_time = time.perf_counter()
                     wav, _ = self.bigvgan(latent, auto_conditioning.transpose(1, 2))
+                    bigvgan_time += time.perf_counter() - m_start_time
                     wav = wav.squeeze(1)
                     pass
             wav = torch.clamp(32767 * wav, -32767.0, 32767.0)
-            wavs.append(wav)
+            wavs.append(wav.cpu()) # to cpu before saving
 
         # clear cache
         tqdm_progress.close()  # 确保进度条被关闭
         chunk_latents.clear()
+        end_time = time.perf_counter()
+        print(f">> Total fast inference time: {end_time - start_time:.2f} seconds")
         self.torch_empty_cache()
-
+ 
         # wav audio output
         self._set_gr_progress(0.9, "save audio...")
         wav = torch.cat(wavs, dim=1)
 
-        # save audio
         wav = wav / 32768.0
-        wav = wav.cpu().float()  # to cpu
+        wav = wav.cpu().float() 
         return {"waveform": wav.unsqueeze(0), "sample_rate": sampling_rate}
 
     # 原始推理模式
-    def infer(self, audio_prompt, text, top_p=0.8, top_k=30, temperature=1.0, max_mel_tokens=600, verbose=False):
+    def infer(self, audio_prompt, text, top_p, top_k, temperature, max_mel_tokens, verbose=False):
         print(">> start inference...")
         self._set_gr_progress(0, "start inference...")
         if verbose:
             print(f"origin text:{text}")
+        start_time = time.perf_counter()
 
         # 如果参考音频改变了，才需要重新生成 cond_mel, 提升速度
         audio, sr = audio_prompt["waveform"].squeeze(0), audio_prompt["sample_rate"]
@@ -401,7 +425,7 @@ class IndexTTS:
                 audio = audio[0].unsqueeze(0)
             audio = torchaudio.transforms.Resample(sr, 24000)(audio)
             cond_mel = MelSpectrogramFeatures()(audio).to(self.device)
-
+            cond_mel_frame = cond_mel.shape[-1]
             if verbose:
                 print(f"cond_mel shape: {cond_mel.shape}", "dtype:", cond_mel.dtype)
 
@@ -409,6 +433,7 @@ class IndexTTS:
             self.cache_cond_mel = cond_mel
         else:
             cond_mel = self.cache_cond_mel
+            cond_mel_frame = cond_mel.shape[-1]
             pass
 
         auto_conditioning = cond_mel
@@ -427,6 +452,9 @@ class IndexTTS:
         # lang = "EN"
         # lang = "ZH"
         wavs = []
+        gpt_gen_time = 0
+        gpt_forward_time = 0
+        bigvgan_time = 0
 
         for sent in sentences:
             text_tokens = self.tokenizer.convert_tokens_to_ids(sent)
@@ -444,6 +472,7 @@ class IndexTTS:
             # text_len = torch.IntTensor([text_tokens.size(1)], device=text_tokens.device)
             # print(text_len)
 
+            m_start_time = time.perf_counter()
             with torch.no_grad():
                 with torch.amp.autocast(text_tokens.device.type, enabled=self.dtype is not None, dtype=self.dtype):
                     codes = self.gpt.inference_speech(auto_conditioning, text_tokens,
@@ -459,7 +488,7 @@ class IndexTTS:
                                                         num_beams=num_beams,
                                                         repetition_penalty=repetition_penalty,
                                                         max_generate_length=max_mel_tokens)
-
+                gpt_gen_time += time.perf_counter() - m_start_time
                 # codes = codes[:, :-2]
                 code_lens = torch.tensor([codes.shape[-1]], device=codes.device, dtype=codes.dtype)
                 if verbose:
@@ -475,6 +504,7 @@ class IndexTTS:
                     print(f"fix codes shape: {codes.shape}, codes type: {codes.dtype}")
                     print(f"code len: {code_lens}")
 
+                m_start_time = time.perf_counter()
                 # latent, text_lens_out, code_lens_out = \
                 with torch.amp.autocast(text_tokens.device.type, enabled=self.dtype is not None, dtype=self.dtype):
                     latent = \
@@ -483,16 +513,20 @@ class IndexTTS:
                                     code_lens*self.gpt.mel_length_compression,
                                     cond_mel_lengths=torch.tensor([auto_conditioning.shape[-1]], device=text_tokens.device),
                                     return_latent=True, clip_inputs=False)
+                    gpt_forward_time += time.perf_counter() - m_start_time
 
+                    m_start_time = time.perf_counter()
                     wav, _ = self.bigvgan(latent, auto_conditioning.transpose(1, 2))
+                    bigvgan_time += time.perf_counter() - m_start_time
                     wav = wav.squeeze(1)
 
                 wav = torch.clamp(32767 * wav, -32767.0, 32767.0)
                 print(f"wav shape: {wav.shape}", "min:", wav.min(), "max:", wav.max())
                 # wavs.append(wav[:, :-512])
-                wavs.append(wav)
-
+                wavs.append(wav.cpu())  # to cpu before saving
+        end_time = time.perf_counter()
         wav = torch.cat(wavs, dim=1)
+        print(f">> Total inference time: {end_time - start_time:.2f} seconds")
 
         # save audio
         wav = wav / 32768.0
