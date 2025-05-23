@@ -533,10 +533,8 @@ class IndexTTS:
         wav = wav.cpu().float()  # to cpu
         return {"waveform": wav.unsqueeze(0), "sample_rate": sampling_rate}
 
+INDEX_TTS = None
 class IndexTTSRun:
-    def __init__(self):
-        self.index_tts = None
-    
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -578,11 +576,12 @@ class IndexTTSRun:
         else:
             cfg_path=f"{current_dir}/checkpoints/config.yaml"
 
-        if self.index_tts is None:
-            self.index_tts = IndexTTS(cfg_path=cfg_path, text_language=text_language)
+        global INDEX_TTS
+        if INDEX_TTS is None:
+            INDEX_TTS = IndexTTS(cfg_path=cfg_path, text_language=text_language)
 
         if fast_inference:
-            res = self.index_tts.infer_fast(
+            res = INDEX_TTS.infer_fast(
                 audio_prompt, 
                 text, 
                 top_p=top_p, 
@@ -591,7 +590,7 @@ class IndexTTSRun:
                 max_mel_tokens=max_mel_tokens, 
                 bucket_enable=bucket_enable)
         else:
-            res = self.index_tts.infer(
+            res = INDEX_TTS.infer(
                 audio_prompt, 
                 text, 
                 top_p=top_p, 
@@ -600,8 +599,8 @@ class IndexTTSRun:
                 max_mel_tokens=max_mel_tokens)
 
         if unload_model:
-            self.index_tts.clean()
-            self.index_tts = None
+            INDEX_TTS.clean()
+            INDEX_TTS = None
             torch.cuda.empty_cache()
 
         return (res,)
