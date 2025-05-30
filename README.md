@@ -10,6 +10,8 @@ Very high voice cloning quality, extremely fast, supports Chinese and English, a
 
 `IndexTTS 正式发布1.5 版本了，效果666,晕XUAN4是一种GAN3觉,我爱你！,I love you!,“我爱你”的英语是“I love you”,2.5平方电线,共465篇，约315万字,2002年的第一场雪，下在了2003年.`
 
+https://github.com/user-attachments/assets/b67891f2-0982-4540-8c3b-1a870305466f
+
 [2025-05-14]⚒️: Supports v1.5. Download and rename models to the `ComfyUI\models\TTS\Index-TTS` path:
 - https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bigvgan_generator.pth  → `bigvgan_generator_v1_5.pth`
 - https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bpe.model → `bpe_v1_5.model`
