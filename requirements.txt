@@ -1,4 +1,11 @@
 omegaconf
 sentencepiece
 tqdm
+
+pynini==2.1.6; platform_system!="Windows"
+WeTextProcessing>=1.0.3; platform_system!="Windows"
+
+# importlib_resources
+# pynini==2.1.6.post1
+# WeTextProcessing>=1.0.4
 # deepspeed # Use it to accelerate model inference
