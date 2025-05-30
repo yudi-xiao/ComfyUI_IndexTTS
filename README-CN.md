@@ -10,6 +10,7 @@
 
 `IndexTTS 正式发布1.5 版本了，效果666,晕XUAN4是一种GAN3觉,我爱你！,I love you!,“我爱你”的英语是“I love you”,2.5平方电线,共465篇，约315万字,2002年的第一场雪，下在了2003年.`
 
+https://github.com/user-attachments/assets/b67891f2-0982-4540-8c3b-1a870305466f
 
 [2025-05-14]⚒️: 支持 v1.5 版本. 模型下载并更名放到 `ComfyUI\models\TTS\Index-TTS` 路径下:
 - https://huggingface.co/IndexTeam/IndexTTS-1.5/blob/main/bigvgan_generator.pth  → `bigvgan_generator_v1_5.pth`
