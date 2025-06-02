@@ -835,7 +835,7 @@ class IndexTTSRun:
     def get_speaker_text_audio(self, text, audio_1, audio_2):
         import re
         
-        pattern = r'(\[s?S?1\]|\[s?S?2\])\s*(.*)'
+        pattern = r'(\[s?S?1\]|\[s?S?2\])\s*([\s\S]*?)(?=\[s?S?[12]\]|$)'
         matches = re.findall(pattern, text)
         if len(matches) == 0:
             raise ValueError("No speaker tags found in the text: [S2]... [S1]...")
