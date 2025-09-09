@@ -8,6 +8,22 @@
 
 [2025-09-09]⚒️: 发布 v2.0.0. **支持IndexTTS2！声音生成，克隆王者登基！**
 
+```
+[S1] 2024年02月14日 Valentine’s Day，你居然忘了？！
+[S2] Babe 对不起！我特意订了 dinner at 7:30 PM，还买了你最爱的 rose，99朵，每朵¥13.14，total ¥1300.86！
+[S1] 哼…那520.13元的红包呢？去年你说“我爱你一生”都发了，今年呢？
+[S2] Already sent！Alipay 提示音你没听到？
+[S1] …那周末去三亚的机票？你上个月说“March 15日出发，住海景房¥2888.88/晚”？
+[S2] Confirmed！Flight MU5378，3月15日08:45起飞。房费我pay，你负责…smile like sunshine！
+[S1] 这还差不多～但下次纪念日别用“Babe”糊弄我！
+[S2] Yes, my Queen！下次发红包¥1314.52。
+```
+
+- 提示词：  
+男：大笑笑笑笑。。。女：哭哭哭。。。
+
+https://github.com/user-attachments/assets/6de33c3a-439b-4921-8f94-796c8852508b
+
 [2025-05-30]⚒️: 发布 v1.2.0. **支持双人对话, 支持预览说话者, Windows 正常安装 pynini, 不再是阉割版 TTS!**
 
 `IndexTTS 正式发布1.5 版本了，效果666,晕XUAN4是一种GAN3觉,我爱你！,I love you!,“我爱你”的英语是“I love you”,2.5平方电线,共465篇，约315万字,2002年的第一场雪，下在了2003年.`
@@ -171,5 +187,6 @@ gpt.pth
 ```
 
 ## 鸣谢
+
 
 - [index-tts](https://github.com/index-tts/index-tts)
