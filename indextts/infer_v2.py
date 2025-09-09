@@ -81,9 +81,10 @@ class IndexTTS2:
         print(">> GPT weights restored from:", self.gpt_path)
         if self.is_fp16:
             try:
-                import deepspeed
-
-                use_deepspeed = True
+                # import deepspeed
+                # 不尝试使用deepspeed加速
+                # use_deepspeed = True
+                use_deepspeed = False
             except (ImportError, OSError, CalledProcessError) as e:
                 use_deepspeed = False
                 print(f">> DeepSpeed加载失败，回退到标准推理: {e}")
