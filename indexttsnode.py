@@ -180,7 +180,7 @@ class IndexTTS2:
 
             self.gpt.post_init_gpt2_config(use_deepspeed=use_deepspeed, kv_cache=True, half=True)
         else:
-            self.gpt.post_init_gpt2_config(use_deepspeed=True, kv_cache=True, half=False)
+            self.gpt.post_init_gpt2_config(use_deepspeed=False, kv_cache=True, half=False)
 
         if self.use_cuda_kernel:
             # preload the CUDA kernel for BigVGAN
